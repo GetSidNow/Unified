@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusBlock Dashboard</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <!-- Optionally, include other sizes or formats -->
+  <!-- <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"> -->
+  
+  <!-- Tailwind CSS for planner view -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <!-- Canvas Confetti for Execute view -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- React and ReactDOM for Key Metrics and Time Visualizer -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  
+  <style>
+    /* ===== Global Styles & Variables ===== */
+    :root {
+      --bg-dark: #121212;
+      --text-primary: #e0e0e0;
+      --accent-color: #4a4a4a;
+      --button-hover: #353535;
+      --voice-active: #4CAF50;
+      --voice-inactive: #f44336;
+      --task-bg: rgba(40, 40, 40, 0.8);
+      --task-hover: rgba(50, 50, 50, 0.9);
+      --time-color: #888;
+      --active-page-bg: rgba(75, 75, 75, 0.6);
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Arial', sans-serif;
+      overflow-x: hidden;
+    }
+    .hidden { display: none; }
+
+    /* ===== Top Navigation Menu ===== */
+    .nav-menu {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background-color: rgba(18,18,18,0.95);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 2100;
+      backdrop-filter: blur(10px);
+    }
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.3s ease;
+    }
+    .brand:hover {
+      opacity: 1;
+    }
+    .brand-logo {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    .brand-text {
+      font-size: 14px;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+    .page-nav {
+      display: flex;
+      gap: 15px;
+    }
+    .page-nav button {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 16px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+    .page-nav button:hover {
+      background-color: var(--active-page-bg);
+    }
+    .page-nav button.active {
+      background-color: var(--active-page-bg);
+      transform: scale(1.05);
+    }
+    .quick-links {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      opacity: 0.8;
+      transition: opacity 0.3s ease;
+    }
+    .quick-links:hover {
+      opacity: 1;
+    }
+    .quick-link {
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-decoration: none;
+      font-size: 14px;
+      padding: 5px;
+      border-radius: 4px;
+      transition: background 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+    .quick-link:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    .quick-link svg {
+      width: 18px;
+      height: 18px;
+    }
+    .quick-link::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: -35px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0,0,0,0.9);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease;
+      z-index: 1000;
+    }
+    .quick-link:hover::after {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* ===== Time Visualizer Overlay Panel ===== */
+    .time-visualizer-overlay {
+      position: fixed;
+      top: 60px;
+      right: -320px;
+      width: 300px;
+      background: var(--bg-dark);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 10px;
+      transition: right 0.3s ease;
+      z-index: 1800;
+    }
+    .time-visualizer-overlay.open {
+      right: 20px;
+    }
+    
+    /* ===== Notes Panel (Overlay) ===== */
+    .notes-panel {
+      position: fixed;
+      top: 60px;
+      right: -400px;
+      width: 400px;
+      height: calc(100vh - 60px);
+      background: var(--bg-dark);
+      box-shadow: -5px 0 20px rgba(0,0,0,0.3);
+      transition: right 0.3s ease;
+      z-index: 1700;
+    }
+    .notes-panel.open {
+      right: 20px;
+    }
+    .notes-header {
+      padding: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .notes-title {
+      color: var(--text-primary);
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .notes-close {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
+      padding: 5px;
+    }
+    .notes-close:hover {
+      opacity: 1;
+    }
+    .notes-content {
+      padding: 20px;
+      height: calc(100% - 70px);
+      display: flex;
+      flex-direction: column;
+    }
+    .notes-textarea {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--text-primary);
+      padding: 15px;
+      font-size: 16px;
+      line-height: 1.5;
+      resize: none;
+      margin-bottom: 15px;
+    }
+    .notes-save {
+      background: var(--accent-color);
+      border: none;
+      color: var(--text-primary);
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    .notes-save:hover {
+      background: var(--button-hover);
+    }
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 1600;
+    }
+    .overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* ===== Focus Timer (Execute) Styles ===== */
+    .timer-container {
+      text-align: center;
+      background-color: rgba(30, 30, 30, 0.8);
+      padding: 30px 20px 20px;
+      border-radius: 20px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
+      width: 90%;
+      max-width: 800px;
+      margin: 80px auto 20px;
+    }
+    #timer {
+      font-size: 100px;
+      font-weight: 200;
+      margin-bottom: 20px;
+      letter-spacing: -4px;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .btn {
+      background-color: var(--accent-color);
+      border: none;
+      color: var(--text-primary);
+      padding: 10px 30px;
+      font-size: 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.3s ease, background-color 0.3s ease;
+      outline: none;
+      margin: 10px;
+    }
+    .btn:hover {
+      background-color: var(--button-hover);
+      transform: scale(1.05);
+    }
+    .btn:active {
+      transform: scale(0.95);
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .current-task {
+      text-align: center;
+      font-size: 18px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: var(--task-bg);
+      border-radius: 8px;
+      opacity: 0.8;
+    }
+    .current-task-time {
+      font-size: 0.9em;
+      color: var(--time-color);
+      margin-top: 5px;
+    }
+    .task-section {
+      margin-top: 40px;
+      text-align: left;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 30px;
+    }
+    .task-input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .task-input {
+      flex: 1;
+      background: var(--task-bg);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-primary);
+      padding: 12px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+    .blocks-input {
+      width: 80px;
+      text-align: center;
+      background: var(--task-bg);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-primary);
+      padding: 12px 15px;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    .task-input:focus, .blocks-input:focus {
+      outline: none;
+      border-color: rgba(255,255,255,0.3);
+      background: var(--task-hover);
+    }
+    .task-list {
+      max-height: 200px;
+      overflow-y: auto;
+      padding-right: 10px;
+    }
+    .task-item {
+      background: var(--task-bg);
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s ease;
+      cursor: move;
+      user-select: none;
+    }
+    .task-item.active {
+      border-left: 4px solid var(--voice-active);
+      padding-left: 11px;
+    }
+    .task-delete {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+      opacity: 0.5;
+      transition: color 0.3s ease;
+      font-size: 20px;
+      padding: 0 10px;
+    }
+    .task-delete:hover {
+      opacity: 1;
+      color: var(--voice-inactive);
+    }
+
+    /* ===== Get Focused (Daily Planner) Styles ===== */
+    #productivity-section {
+      margin-top: 80px;
+    }
+    .glass-panel {
+      background: rgba(30,30,30,0.95);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .question-text {
+      color: rgba(255,255,255,0.6);
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ===== Key Metrics (Business Dashboard) Styles ===== */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1400px;
+      margin: 20px auto;
+    }
+    .metric-card {
+      background-color: #2d2d2d;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      transition: all 0.2s;
+    }
+    .metric-card.forecast {
+      border: 1px solid #3b82f6;
+    }
+    .metric-title {
+      color: #fff;
+      margin-bottom: 0.5rem;
+      font-size: 1rem;
+    }
+    .metric-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #60a5fa;
+      margin: 0.5rem 0;
+      cursor: pointer;
+    }
+    .metric-value.calculated {
+      color: #34d399;
+    }
+    .metric-description {
+      color: #9ca3af;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+    .metric-additional {
+      color: #60a5fa;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+      font-weight: 500;
+    }
+    .edit-input {
+      background: #1a1a1a;
+      border: none;
+      border-radius: 0.5rem;
+      color: #60a5fa;
+      font-size: 2.5rem;
+      font-weight: bold;
+      padding: 0.25rem;
+      width: 100%;
+      outline: none;
+    }
+    .time-button {
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ===== Responsive Styles ===== */
+    @media (max-width: 640px) {
+      /* Navigation adjustments */
+      .nav-menu {
+        padding: 8px 10px;
+        flex-direction: column;
+      }
+      .nav-left, .quick-links {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .brand-logo {
+        font-size: 20px;
+      }
+      .brand-text {
+        font-size: 12px;
+      }
+      
+      /* Timer adjustments */
+      #timer {
+        font-size: 60px;
+      }
+      .timer-container {
+        margin: 60px auto 10px;
+        padding: 20px;
+      }
+      
+      /* Input and button adjustments */
+      .task-input, .blocks-input {
+        padding: 8px;
+        font-size: 14px;
+      }
+      .btn {
+        padding: 8px 20px;
+        font-size: 14px;
+      }
+      
+      /* Panel adjustments for smaller screens */
+      .time-visualizer-overlay {
+        width: 90%;
+        right: -90%;
+      }
+      .time-visualizer-overlay.open {
+        right: 5%;
+      }
+      .notes-panel {
+        width: 90%;
+        right: -90%;
+      }
+      .notes-panel.open {
+        right: 5%;
+      }
+      
+      /* Productivity section grid adjustment */
+      #productivity-section .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== Top Navigation Menu ===== -->
+  <div class="nav-menu">
+    <!-- Left: Brand and Page Navigation -->
+    <div class="nav-left">
+      <!-- Clicking the FocusBlock logo always returns to Execute (Focus Block) -->
+      <div class="brand" id="brandToggle" onclick="showSection('timer-section'); setActiveNav(null)">
+        <div class="brand-logo">FB</div>
+        <div class="brand-text">FocusBlock</div>
+      </div>
+      <!-- Page Navigation: two buttons -->
+      <div class="page-nav">
+        <button id="navFocused" onclick="showSection('productivity-section'); setActiveNav(this)">Get Focused</button>
+        <button id="navMetrics" onclick="showSection('metrics-section'); setActiveNav(this)">Key Metrics</button>
+      </div>
+    </div>
+    <!-- Right: External Quick Links plus Quick Notes and Time Visualizer -->
+    <div class="quick-links">
+      <a href="https://calendar.google.com/calendar/u/1/r" target="_blank" class="quick-link" data-tooltip="Google Calendar">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2z"></path></svg>
+      </a>
+      <a href="https://mail.google.com/mail/u/1/#inbox" target="_blank" class="quick-link" data-tooltip="Gmail">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z"></path></svg>
+      </a>
+      <a href="https://docs.google.com/document/u/1" target="_blank" class="quick-link" data-tooltip="Google Docs">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"></path><path d="M8 15h8v2H8zM8 11h8v2H8z"></path></svg>
+      </a>
+      <a href="https://app.guesttouch.com/" target="_blank" class="quick-link" data-tooltip="GuestTouch Dashboard">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"></path></svg>
+      </a>
+      <a href="https://guesttouchinc.chargebee.com/dashboards/?" target="_blank" class="quick-link" data-tooltip="Chargebee">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z"></path><path d="M7 17h10v-2H7v2zm0-4h10v-2H7v2zm0-4h10V7H7v2z"></path></svg>
+      </a>
+      <a href="https://app.copper.com/companies/514959/app#" target="_blank" class="quick-link" data-tooltip="Copper CRM">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"></path><path d="M6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"></path></svg>
+      </a>
+      <a href="https://claude.ai/recents" target="_blank" class="quick-link" data-tooltip="Claude AI">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      </a>
+      <!-- Quick Notes Icon -->
+      <a href="javascript:void(0)" onclick="toggleNotes()" class="quick-link" data-tooltip="Quick Notes">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h12v-2H3v2zM3 6v2h18V6H3zm0 7h18v-2H3v2z"></path></svg>
+      </a>
+      <!-- Time Visualizer Icon -->
+      <a href="javascript:void(0)" onclick="toggleTimeVisualizer()" class="quick-link" data-tooltip="Time Visualizer">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a11 11 0 1 0 11 11A11.013 11.013 0 0 0 12 1zm0 20a9 9 0 1 1 9-9 9.01 9.01 0 0 1-9 9zm.5-13h-1v6l5.25 3.15.5-.86-4.75-2.79z"></path></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- ===== Time Visualizer Overlay Panel ===== -->
+  <div class="time-visualizer-overlay" id="timeVisualizerOverlay">
+    <div id="timeVisualizerContainer"></div>
+  </div>
+
+  <!-- ===== Notes Panel (Overlay) ===== -->
+  <div class="notes-panel" id="notesPanel">
+    <div class="notes-header">
+      <div class="notes-title">Quick Notes</div>
+      <button class="notes-close" onclick="toggleNotes()">×</button>
+    </div>
+    <div class="notes-content">
+      <textarea class="notes-textarea" id="notesText" placeholder="Jot down your thoughts here..."></textarea>
+      <button class="notes-save" onclick="saveNotes()">Save Notes</button>
+    </div>
+  </div>
+  <div class="overlay" id="overlay" onclick="toggleNotes()"></div>
+
+  <!-- ===== EXECUTE SECTION (Focus Timer - Default Home) ===== -->
+  <div id="timer-section" class="timer-container">
+    <div id="timer">00:00:00</div>
+    <div class="current-task" id="current-task">
+      <div id="current-task-text">Add a task to begin focusing</div>
+      <div id="current-task-time" class="current-task-time"></div>
+    </div>
+    <div class="controls">
+      <button id="start" class="btn">Start</button>
+      <button id="stop" class="btn">Stop</button>
+      <button id="reset" class="btn">Reset</button>
+      <button id="voice-toggle" class="btn">Voice On/Off</button>
+    </div>
+    <div id="voice-status">Voice Commands: Disabled</div>
+    <div class="task-section">
+      <div class="task-header">
+        <h2>Focus Tasks</h2>
+        <div id="completion-time" class="estimated-completion">Estimated completion: --:--</div>
+      </div>
+      <div class="task-input-group">
+        <input type="text" id="task-input" class="task-input" placeholder="What are you working on?">
+        <input type="number" id="blocks-input" class="blocks-input" placeholder="Blocks" min="1" value="1">
+        <button class="btn" onclick="addTimerTask()">Add Task</button>
+      </div>
+      <div class="task-list" id="task-list">
+        <!-- Execute tasks will appear here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GET FOCUSED SECTION (Daily Planner) ===== -->
+  <div id="productivity-section" class="p-8 hidden">
+    <div class="max-w-7xl mx-auto space-y-8">
+      <!-- Critical Task Section -->
+      <div class="glass-panel">
+        <p class="question-text">What is the ONE most critical task that will have the highest impact?</p>
+        <div class="flex gap-4">
+          <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="What are you working on?">
+          <button class="add-button px-8" onclick="addProductivityTask('critical-tasks')">Add Task</button>
+        </div>
+        <div id="critical-tasks" class="space-y-4 mt-4"></div>
+      </div>
+      <!-- Main Tasks Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
+        <!-- Important Tasks -->
+        <div class="glass-panel">
+          <p class="question-text">What are the key tasks that will have the most impact for us today?</p>
+          <div class="space-y-4">
+            <div class="flex gap-4">
+              <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="Enter task">
+              <button class="add-button px-8" onclick="addProductivityTask('impact-tasks')">Add Task</button>
+            </div>
+            <div id="impact-tasks" class="space-y-4"></div>
+          </div>
+        </div>
+        <!-- Today's Top 3 -->
+        <div class="glass-panel">
+          <p class="question-text">Today's Top 3</p>
+          <div class="space-y-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" class="w-5 h-5 rounded-lg">
+              <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="Priority 1">
+            </div>
+            <div class="flex items-center gap-4">
+              <input type="checkbox" class="w-5 h-5 rounded-lg">
+              <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="Priority 2">
+            </div>
+            <div class="flex items-center gap-4">
+              <input type="checkbox" class="w-5 h-5 rounded-lg">
+              <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="Priority 3">
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Bottom Row -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <!-- Quick Wins -->
+        <div class="glass-panel">
+          <p class="question-text">What can you accomplish in 15 minutes?</p>
+          <div class="flex gap-4">
+            <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="Quick win">
+            <button class="add-button px-8" onclick="addProductivityTask('quick-wins')">Add Task</button>
+          </div>
+          <div id="quick-wins" class="space-y-4 mt-4"></div>
+        </div>
+        <!-- Delegation -->
+        <div class="glass-panel">
+          <p class="question-text">What is the ONE thing we can delegate?</p>
+          <div class="space-y-4">
+            <input type="text" class="task-input w-full px-6 rounded-xl" placeholder="Task to delegate">
+            <div class="grid grid-cols-2 gap-4">
+              <input type="text" class="task-input px-6 rounded-xl" placeholder="Who">
+              <input type="text" class="task-input px-6 rounded-xl" placeholder="When">
+            </div>
+          </div>
+        </div>
+        <!-- Maintenance -->
+        <div class="glass-panel">
+          <p class="question-text">What maintenance tasks need to get done?</p>
+          <div class="flex gap-4">
+            <input type="text" class="task-input flex-1 px-6 rounded-xl" placeholder="Maintenance task">
+            <button class="add-button px-8" onclick="addProductivityTask('maintenance-tasks')">Add Task</button>
+          </div>
+          <div id="maintenance-tasks" class="space-y-4 mt-4"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // Productivity: add task to the corresponding container.
+      function addProductivityTask(containerId) {
+        const container = document.getElementById(containerId);
+        // In Daily Planner view, get the input from the closest parent
+        const input = container.parentElement.querySelector('input[type="text"]');
+        const taskText = input.value.trim();
+        if (taskText) {
+          const taskElement = document.createElement('div');
+          taskElement.className = 'task-row flex items-center gap-4';
+          taskElement.innerHTML = `
+            <input type="checkbox" class="w-5 h-5 rounded-lg">
+            <input type="text" class="task-input flex-1 px-6 rounded-xl" value="${taskText}" readonly>
+            <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-white p-2">×</button>
+          `;
+          container.appendChild(taskElement);
+          input.value = '';
+        }
+      }
+      // Add Enter-key support for Daily Planner inputs.
+      document.querySelectorAll('#productivity-section .task-input').forEach(input => {
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            const addButton = this.parentElement.querySelector('.add-button');
+            if (addButton) { addButton.click(); }
+          }
+        });
+      });
+    </script>
+  </div>
+
+  <!-- ===== KEY METRICS SECTION (Business Dashboard) ===== -->
+  <div id="metrics-section" class="hidden p-4">
+    <div id="metrics-root"></div>
+    <script>
+      // React components for Business Dashboard
+      const { useState, useEffect } = React;
+
+      const MetricCard = ({ title, value, description, onValueChange, isCalculated = false, additionalInfo = null, isForecast = false }) => {
+          const [isEditing, setIsEditing] = useState(false);
+          const [currentValue, setCurrentValue] = useState(value);
+
+          useEffect(() => {
+              setCurrentValue(value);
+          }, [value]);
+
+          const handleSubmit = (e) => {
+              e.preventDefault();
+              setIsEditing(false);
+              onValueChange(currentValue);
+          };
+
+          return React.createElement('div', { 
+              className: `metric-card ${isForecast ? 'forecast' : ''}`
+          },
+              React.createElement('div', null,
+                  React.createElement('div', { className: 'metric-title' }, title),
+                  isEditing && !isCalculated ? 
+                      React.createElement('form', { onSubmit: handleSubmit },
+                          React.createElement('input', {
+                              type: 'text',
+                              className: 'edit-input',
+                              value: currentValue,
+                              onChange: (e) => setCurrentValue(e.target.value),
+                              onBlur: handleSubmit,
+                              autoFocus: true
+                          })
+                      ) :
+                      React.createElement('div', {
+                          className: `metric-value ${isCalculated ? 'calculated' : ''}`,
+                          onClick: () => !isCalculated && setIsEditing(true)
+                      }, value),
+                  React.createElement('div', { className: 'metric-description' }, description),
+                  additionalInfo && React.createElement('div', { className: 'metric-additional' }, additionalInfo)
+              )
+          );
+      };
+
+      const TimeVisualizer = () => {
+          const [progress, setProgress] = useState({
+              year: 0,
+              month: 0,
+              day: 0
+          });
+
+          useEffect(() => {
+              const updateProgress = () => {
+                  const now = new Date();
+                  const startOfYear = new Date(now.getFullYear(), 0, 1);
+                  const yearProgress = ((now - startOfYear) / (1000 * 60 * 60 * 24 * 365)) * 100;
+                  
+                  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                  const monthProgress = (now.getDate() / daysInMonth) * 100;
+                  
+                  const dayProgress = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400 * 100;
+
+                  setProgress({
+                      year: yearProgress.toFixed(1),
+                      month: monthProgress.toFixed(1),
+                      day: dayProgress.toFixed(1)
+                  });
+              };
+
+              updateProgress();
+              const interval = setInterval(updateProgress, 1000);
+              return () => clearInterval(interval);
+          }, []);
+
+          return React.createElement('div', null,
+              React.createElement('div', { className: 'time-header' }, 'Time Perspective'),
+              React.createElement('div', { className: 'time-stat' },
+                  React.createElement('span', null, 'Year Progress:'),
+                  React.createElement('span', null, `${progress.year}%`)
+              ),
+              React.createElement('div', { className: 'time-stat' },
+                  React.createElement('span', null, 'Month Progress:'),
+                  React.createElement('span', null, `${progress.month}%`)
+              ),
+              React.createElement('div', { className: 'time-stat' },
+                  React.createElement('span', null, 'Day Progress:'),
+                  React.createElement('span', null, `${progress.day}%`)
+              )
+          );
+      };
+
+      const App = () => {
+          const parseAmount = (value) => {
+              return parseFloat(value.replace(/[^0-9.-]+/g, ""));
+          };
+
+          const formatCurrency = (value) => {
+              return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          };
+
+          const calculateRunwayAndBurn = (cash, mrr, expenses) => {
+              const netBurn = expenses - mrr;
+              const netBurnDisplay = `${netBurn > 0 ? '-' : '+'}${formatCurrency(Math.abs(netBurn))}/month`;
+
+              if (netBurn <= 0) {
+                  return {
+                      runway: 'Profitable',
+                      burn: netBurnDisplay
+                  };
+              }
+
+              const runwayMonths = (cash / netBurn).toFixed(1);
+              return {
+                  runway: `${runwayMonths} months`,
+                  burn: netBurnDisplay
+              };
+          };
+
+          const [metrics, setMetrics] = useState([
+              {
+                  title: 'Current Cash',
+                  value: '$85,000',
+                  description: 'Total available cash'
+              },
+              {
+                  title: 'MRR',
+                  value: '$32,307.05',
+                  description: 'Monthly Recurring Revenue'
+              },
+              {
+                  title: 'Trailing ARR',
+                  value: '$300,000',
+                  description: 'Annual Recurring Revenue (last 12 months)'
+              },
+              {
+                  title: 'Expenses/Month',
+                  value: '$39,000',
+                  description: 'Average monthly expenses'
+              },
+              {
+                  title: 'Revenue vs expense',
+                  value: 'Calculating...',
+                  description: 'Net revenue after expenses',
+                  isCalculated: true
+              },
+              {
+                  title: 'Cash Runway',
+                  value: 'Calculating...',
+                  description: 'Current runway at existing burn rate',
+                  isCalculated: true
+              },
+              {
+                  title: 'Onboarding Value MRR',
+                  value: '$5,490',
+                  description: 'Potential monthly revenue in onboarding'
+              },
+              {
+                  title: 'Net New Billing This Month',
+                  value: '$12,500',
+                  description: 'New monthly revenue added this month'
+              },
+              {
+                  title: 'Forecast: With Onboarding',
+                  value: 'Calculating...',
+                  description: 'Future runway after onboarding converts',
+                  isCalculated: true,
+                  isForecast: true
+              },
+              {
+                  title: 'Forecast: With New Billing',
+                  value: 'Calculating...',
+                  description: 'Future runway with this month\'s billing',
+                  isCalculated: true,
+                  isForecast: true
+              },
+              {
+                  title: 'Forecast: All Revenue',
+                  value: 'Calculating...',
+                  description: 'Future runway with all new revenue',
+                  isCalculated: true,
+                  isForecast: true
+              }
+          ]);
+
+          const updateCalculations = (newMetrics) => {
+              const cash = parseAmount(newMetrics[0].value);
+              const currentMRR = parseAmount(newMetrics[1].value);
+              const expenses = parseAmount(newMetrics[3].value);
+              const onboardingMRR = parseAmount(newMetrics[6].value);
+              const newBillingMRR = parseAmount(newMetrics[7].value);
+
+              const netRevenue = currentMRR - expenses;
+              newMetrics[4].value = formatCurrency(netRevenue);
+              newMetrics[4].additionalInfo = netRevenue >= 0 ? 'Surplus' : 'Deficit';
+
+              const current = calculateRunwayAndBurn(cash, currentMRR, expenses);
+              newMetrics[5].value = current.runway;
+              newMetrics[5].additionalInfo = `Net Burn: ${current.burn}`;
+
+              const withOnboarding = calculateRunwayAndBurn(cash, currentMRR + onboardingMRR, expenses);
+              newMetrics[8].value = withOnboarding.runway;
+              newMetrics[8].additionalInfo = `Future MRR: ${formatCurrency(currentMRR + onboardingMRR)}`;
+
+              const withNewBilling = calculateRunwayAndBurn(cash, currentMRR + newBillingMRR, expenses);
+              newMetrics[9].value = withNewBilling.runway;
+              newMetrics[9].additionalInfo = `Future MRR: ${formatCurrency(currentMRR + newBillingMRR)}`;
+
+              const withAll = calculateRunwayAndBurn(cash, currentMRR + onboardingMRR + newBillingMRR, expenses);
+              newMetrics[10].value = withAll.runway;
+              newMetrics[10].additionalInfo = `Future MRR: ${formatCurrency(currentMRR + onboardingMRR + newBillingMRR)}`;
+
+              return newMetrics;
+          };
+
+          useEffect(() => {
+              setMetrics(metrics => updateCalculations([...metrics]));
+          }, []);
+
+          const handleValueChange = (index, newValue) => {
+              const newMetrics = [...metrics];
+              newMetrics[index].value = newValue;
+              setMetrics(updateCalculations(newMetrics));
+          };
+
+          return React.createElement('div', null,
+              React.createElement('div', { className: 'grid-container' },
+                  metrics.map((metric, index) =>
+                      React.createElement(MetricCard, {
+                          key: index,
+                          ...metric,
+                          onValueChange: (newValue) => handleValueChange(index, newValue)
+                      })
+                  )
+              )
+          );
+      };
+
+      ReactDOM.render(
+          React.createElement(App),
+          document.getElementById('metrics-root')
+      );
+    </script>
+  </div>
+
+  <script>
+    /* ===== Section Navigation ===== */
+    function showSection(sectionId) {
+      document.getElementById('timer-section').classList.add('hidden');
+      document.getElementById('productivity-section').classList.add('hidden');
+      document.getElementById('metrics-section').classList.add('hidden');
+      document.getElementById(sectionId).classList.remove('hidden');
+      // Update active state in the page-nav buttons
+      const navFocused = document.getElementById('navFocused');
+      const navMetrics = document.getElementById('navMetrics');
+      if (sectionId === 'timer-section') {
+        navFocused.classList.remove('active');
+        navMetrics.classList.remove('active');
+      } else if (sectionId === 'productivity-section') {
+        navFocused.classList.add('active');
+        navMetrics.classList.remove('active');
+      } else if (sectionId === 'metrics-section') {
+        navFocused.classList.remove('active');
+        navMetrics.classList.add('active');
+      }
+    }
+
+    /* ===== Focus Timer (Execute) Code ===== */
+    let time = 0;
+    let interval;
+    let recognition = null;
+    let tasks = [];
+    let currentTaskIndex = -1;
+    const BLOCK_MINUTES = 50;
+
+    const timerDisplay = document.getElementById('timer');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+    const resetBtn = document.getElementById('reset');
+    const voiceToggleBtn = document.getElementById('voice-toggle');
+    const voiceStatus = document.getElementById('voice-status');
+    const taskInput = document.getElementById('task-input');
+    const blocksInput = document.getElementById('blocks-input');
+    const currentTaskText = document.getElementById('current-task-text');
+    const currentTaskTime = document.getElementById('current-task-time');
+    const completionTime = document.getElementById('completion-time');
+
+    function formatTime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function fireConfetti() {
+      if (typeof confetti === 'undefined') return;
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#4CAF50', '#ffeb3b', '#03a9f4'],
+        zIndex: 9999
+      });
+      setTimeout(() => {
+        confetti({ particleCount: 50, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 9999 });
+        confetti({ particleCount: 50, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 9999 });
+      }, 250);
+    }
+
+    function startTimer() {
+      if (interval) return;
+      if (tasks.length === 0) {
+        alert('Please add at least one task before starting the timer.');
+        return;
+      }
+      if (currentTaskIndex === -1) {
+        currentTaskIndex = 0;
+        updateTaskDisplay();
+        fireConfetti();
+      }
+      interval = setInterval(() => { time++; updateDisplay(); }, 1000);
+      updateVoiceStatus('Timer Running', 'voice-active');
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    }
+
+    function stopTimer() {
+      clearInterval(interval);
+      interval = null;
+      updateVoiceStatus('Timer Paused', 'voice-inactive');
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function resetTimer() {
+      clearInterval(interval);
+      interval = null;
+      time = 0;
+      updateDisplay();
+      updateVoiceStatus('Timer Reset', 'voice-inactive');
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function updateDisplay() {
+      const timeStr = formatTime(time);
+      timerDisplay.textContent = timeStr;
+      document.title = `${timeStr} - FocusBlock`;
+    }
+
+    function updateVoiceStatus(message, className) {
+      voiceStatus.textContent = message;
+      voiceStatus.className = className;
+    }
+
+    function addTimerTask() {
+      const taskText = taskInput.value.trim();
+      const blocks = parseInt(blocksInput.value) || 1;
+      if (taskText) {
+        tasks.push({ text: taskText, blocks: blocks, completed: false });
+        taskInput.value = '';
+        blocksInput.value = '1';
+        updateTaskList();
+        updateCompletionTimes();
+        if (currentTaskIndex === -1) updateTaskDisplay();
+      }
+    }
+
+    function removeTask(index) {
+      tasks.splice(index, 1);
+      if (index === currentTaskIndex) {
+        currentTaskIndex = tasks.length > 0 ? 0 : -1;
+      } else if (index < currentTaskIndex) {
+        currentTaskIndex--;
+      }
+      updateTaskList();
+      updateCompletionTimes();
+      updateTaskDisplay();
+    }
+
+    function updateTaskList() {
+      const taskList = document.getElementById('task-list');
+      taskList.innerHTML = tasks.map((task, index) => {
+        const estimatedTime = calculateTaskTime(index);
+        return `
+          <div class="task-item ${index === currentTaskIndex ? 'active' : ''}" data-index="${index}">
+            <div class="task-info">
+              <div class="task-text">${task.text}</div>
+              <div class="task-meta">Estimated completion: ${estimatedTime}</div>
+            </div>
+            <span class="task-blocks">${task.blocks} block${task.blocks > 1 ? 's' : ''}</span>
+            <button class="task-delete" onclick="removeTask(${index})">×</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateTaskDisplay() {
+      if (currentTaskIndex >= 0 && currentTaskIndex < tasks.length) {
+        const task = tasks[currentTaskIndex];
+        currentTaskText.textContent = `Current Focus: ${task.text}`;
+        currentTaskTime.textContent = `Estimated completion: ${calculateTaskTime(currentTaskIndex)}`;
+      } else {
+        currentTaskText.textContent = 'Add a task to begin focusing';
+        currentTaskTime.textContent = '';
+      }
+    }
+
+    function calculateTaskTime(taskIndex) {
+      let totalMinutes = 0;
+      for (let i = 0; i <= taskIndex; i++) {
+        totalMinutes += tasks[i].blocks * BLOCK_MINUTES;
+      }
+      const now = new Date();
+      const estimatedTime = new Date(now.getTime() + totalMinutes * 60000);
+      return estimatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function updateCompletionTimes() {
+      if (tasks.length > 0) {
+        const finalTime = calculateTaskTime(tasks.length - 1);
+        completionTime.textContent = `Estimated completion: ${finalTime}`;
+      } else {
+        completionTime.textContent = 'Estimated completion: --:--';
+      }
+    }
+
+    // Voice Recognition
+    function initVoiceRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        updateVoiceStatus('Voice Not Supported', 'voice-inactive');
+        return;
+      }
+      if (recognition) {
+        recognition.stop();
+        recognition = null;
+        updateVoiceStatus('Voice Commands: Disabled', 'voice-inactive');
+        return;
+      }
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      recognition.onstart = () => { updateVoiceStatus('Voice Commands: Active', 'voice-active'); };
+      recognition.onerror = (event) => { updateVoiceStatus('Voice Error: ' + event.error, 'voice-inactive'); recognition = null; };
+      recognition.onend = () => { if (recognition) recognition.start(); };
+      recognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+        if (transcript.includes("let's go") || transcript.includes('start') || transcript.includes('go')) {
+          startTimer();
+        } else if (transcript.includes('done') || transcript.includes('stop') || transcript.includes('pause')) {
+          stopTimer();
+        } else if (transcript.includes('new task') || transcript.includes("let's keep going") || transcript.includes('reset') || transcript.includes('restart')) {
+          resetTimer();
+        }
+      };
+      try {
+        recognition.start();
+      } catch (err) {
+        updateVoiceStatus('Start Failed', 'voice-inactive');
+        recognition = null;
+      }
+    }
+
+    startBtn.addEventListener('click', startTimer);
+    stopBtn.addEventListener('click', stopTimer);
+    resetBtn.addEventListener('click', resetTimer);
+    voiceToggleBtn.addEventListener('click', initVoiceRecognition);
+    taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTimerTask(); });
+
+    // ===== Time Visualizer Overlay =====
+    function toggleTimeVisualizer() {
+      const panel = document.getElementById('timeVisualizerOverlay');
+      if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+      } else {
+        panel.classList.add('open');
+      }
+    }
+    const TimeVisualizerComponent = React.createElement(TimeVisualizer);
+    ReactDOM.render(TimeVisualizerComponent, document.getElementById('timeVisualizerContainer'));
+
+    // ===== Notes Section (Overlay) =====
+    function toggleNotes() {
+      const panel = document.getElementById('notesPanel');
+      const overlay = document.getElementById('overlay');
+      if (panel.classList.contains('open')) {
+        panel.classList.remove('open');
+        overlay.classList.remove('active');
+      } else {
+        panel.classList.add('open');
+        overlay.classList.add('active');
+        document.getElementById('notesText').value = "";
+      }
+    }
+    function saveNotes() {
+      const notes = document.getElementById('notesText').value;
+      localStorage.setItem('focusBlockNotes', notes);
+      const saveBtn = document.querySelector('.notes-save');
+      const originalText = saveBtn.textContent;
+      saveBtn.textContent = 'Saved!';
+      saveBtn.disabled = true;
+      setTimeout(() => { saveBtn.textContent = originalText; saveBtn.disabled = false; }, 1500);
+    }
+    setInterval(() => {
+      if (document.getElementById('notesPanel').classList.contains('open')) saveNotes();
+    }, 30000);
+    document.getElementById('notesPanel').addEventListener('transitionend', function(e) {
+      if (!this.classList.contains('open')) saveNotes();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.getElementById('notesPanel').classList.contains('open')) toggleNotes();
+    });
+
+    // Initial setup
+    stopBtn.disabled = true;
+    updateDisplay();
+    updateCompletionTimes();
+
+    // Active navigation button helper
+    function setActiveNav(btn) {
+      document.querySelectorAll('.page-nav button').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+  </script>
+</body>
+</html>
